@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software in academic work, please cite it as below."
+title: "Collab2Us: integrating visual ideation (Miro) and agile backlog management (Trello) with human-validated user stories"
+type: software
+version: "1.0.0"
+date-released: "2026-10-19"
+authors:
+  - family-names: "Dornelles dos Santos"
+    given-names: "Pedro Lucas"
+license: PolyForm-Strict-1.0.0
+repository-code: "https://github.com/Pedro-YH10/Collab2Us"
