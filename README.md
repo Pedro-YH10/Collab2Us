@@ -37,22 +37,19 @@ The application follows a human-in-the-loop workflow: automation speeds up the w
 
 ## How it works
 
-```mermaid
-flowchart LR
-    A["Miro board - Sticky notes"] --> B["Extraction and story conversion"]
-    B --> C["Curation and quality checks: QUS, INVEST, BDD"]
-    C --> D{"Human review"}
-    D -->|Approved| E["Trello backlog - Lists and cards"]
-    E <--> F["Traceability and on-demand sync"]
-    E --> G["Reverse transfer to Miro"]
-    G --> A
-```
+Collab2Us connects visual discovery in Miro with backlog delivery in Trello through a human-in-the-loop workflow.
+
+**Workflow:**
 
 1. **Connect your boards.** Sign in and authorize the Miro and Trello integrations.
 2. **Extract and prepare.** Select a Miro board and convert its sticky notes into draft user stories.
-3. **Review the content.** Refine titles, story statements, and acceptance criteria; inspect quality indicators and choose which stories to export.
+3. **Review the content.** Refine titles, story statements, and acceptance criteria. Inspect quality indicators and choose which stories to export.
 4. **Export to Trello.** Choose the destination board and list. Approved stories become Trello cards, and the mapping is saved for traceability.
 5. **Check synchronization.** Review detected differences and apply updates when appropriate. Trello cards can also be transferred back to Miro.
+
+**Workflow summary:**
+
+Miro sticky notes → Story conversion → Quality checks → Human review → Trello cards → Synchronization
 
 AI assistance is optional. Without a configured AI provider, the application falls back to rule-based behavior, and AI-backed features are limited.
 
