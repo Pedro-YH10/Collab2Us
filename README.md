@@ -40,11 +40,11 @@ The application follows a human-in-the-loop workflow: automation speeds up the w
 
 ```mermaid
 flowchart LR
-    A["Miro board<br/>Sticky notes"] --> B["Extraction and<br/>story conversion"]
-    B --> C["Curation and quality checks<br/>QUS · INVEST · BDD"]
+    A["Miro board: Sticky notes"] --> B["Extraction and story conversion"]
+    B --> C["Curation and quality checks: QUS, INVEST, BDD"]
     C --> D{"Human review"}
-    D -->|Approved| E["Trello backlog<br/>Lists and cards"]
-    E <--> F["Traceability and<br/>on-demand sync"]
+    D -->|Approved| E["Trello backlog: Lists and cards"]
+    E <--> F["Traceability and on-demand sync"]
     E --> G["Reverse transfer"]
     G --> A
 ```
