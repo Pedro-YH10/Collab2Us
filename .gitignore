@@ -1,7 +1,7 @@
-#Importante:
+# Importante
 .env
 
-#Logs:
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -15,7 +15,7 @@ dist
 dist-ssr
 *.local
 
-#Pastas do Editor e arquivos:
+# Pastas do Editor e arquivos
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 
 .config/
+
+# Arquivos extra
+/z.*

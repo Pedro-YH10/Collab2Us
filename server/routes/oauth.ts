@@ -1,25 +1,31 @@
-import { RequestHandler } from "express";
+import { RequestHandler, Response } from "express";
 import { saveToken } from "../models/tokens";
-import { createUser, findUserByEmail, findUserById } from "../models/users";
+import { createUser, findUserByEmail } from "../models/users";
+import { setSessionCookie } from "./auth";
 import jwt from "jsonwebtoken";
 import { required } from "../services/http";
+import crypto from "node:crypto";
+import { AuthenticatedRequest } from "../middleware/auth";
 
-//Pegar as variáveis de ambiente do ".env":
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_default_secret_key_collab2us";
+
 function baseUrlEnv(name: string) {
   const v = process.env[name];
   if (!v) throw new Error(`Env ${name} não configurada`);
   return v;
 }
 
-//Rota de login com o Google:
 export const googleStart: RequestHandler = (req, res) => {
   try {
     const clientId = baseUrlEnv("GOOGLE_CLIENT_ID");
     const redirectUri = baseUrlEnv("GOOGLE_REDIRECT_URI");
-    const userIdFromQuery = String(req.query.userId || ""); //userId
-    //console.log("googleStart - userIdFromQuery:", userIdFromQuery); //Debug
-    //console.log("googleStart - GOOGLE_REDIRECT_URI:", redirectUri); //Debug da URI de redirecionamento
-    const state = new URLSearchParams({ userId: userIdFromQuery, chain: String(req.query.chain || "") }).toString();
+    
+    const stateToken = jwt.sign(
+      { chain: String(req.query.chain || "") }, 
+      JWT_SECRET, 
+      { expiresIn: "15m" }
+    );
+    
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     url.searchParams.set("client_id", clientId);
     url.searchParams.set("redirect_uri", redirectUri);
@@ -27,21 +33,25 @@ export const googleStart: RequestHandler = (req, res) => {
     url.searchParams.set("scope", "openid email profile");
     url.searchParams.set("access_type", "offline");
     url.searchParams.set("prompt", "consent");
-    url.searchParams.set("state", state);
+    url.searchParams.set("state", stateToken);
     res.redirect(url.toString());
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("[OAuth Google Start Error]:", e);
+    res.status(500).send("Erro interno ao iniciar autenticação com o Google.");
   }
 };
 
-//Rota de redirecionamento de login com o Google:
 export const googleCallback: RequestHandler = async (req, res) => {
   try {
     const code = required(req.query.code as string);
-    const stateStr = (req.query.state as string) || "";
-    const state = Object.fromEntries(new URLSearchParams(stateStr));
-    const userIdFromState = state.userId || "";
-    //console.log("googleCallback - userIdFromState:", userIdFromState); //Debug
+    const stateToken = required(req.query.state as string);
+
+    let decodedState: { chain?: string };
+    try {
+      decodedState = jwt.verify(stateToken, JWT_SECRET) as { chain?: string };
+    } catch {
+      return res.status(403).send("Falha na validação de segurança (State inválido ou expirado).");
+    }
 
     const clientId = baseUrlEnv("GOOGLE_CLIENT_ID");
     const clientSecret = baseUrlEnv("GOOGLE_CLIENT_SECRET");
@@ -58,73 +68,84 @@ export const googleCallback: RequestHandler = async (req, res) => {
         code,
       }),
     });
+    
     const tokenJson: any = await tokenRes.json();
-    if (!tokenRes.ok) throw new Error(tokenJson.error_description || "Falha ao trocar o código por token (Google)");
+    if (!tokenRes.ok) throw new Error(tokenJson.error_description || "Falha na validação com o Google");
 
     const idToken = tokenJson.id_token as string | undefined;
-    let userId = userIdFromState; //userId do state
-    let userName: string = "Usuário";
-    let userEmail: string = "";
+    if (!idToken) throw new Error("ID Token ausente.");
 
-    if (idToken) {
-      const decoded: any = jwt.decode(idToken) || {};
-      //console.log("Decoded Google ID Token:", decoded); //Debug
-      const email: string | undefined = decoded?.email;
-      const name: string = decoded?.name || decoded?.given_name || "Usuário";
-      userName = name; //Atualizar userName
-      userEmail = email || ""; //Atualizar userEmail
+    const decoded: any = jwt.decode(idToken) || {};
+    const email: string = decoded?.email;
+    const name: string = decoded?.name || "Usuário SSO";
 
-      if (email) {
-        const existing = await findUserByEmail(email);
-        if (existing) userId = existing.user.id;
-        else {
-          const u = await createUser(name, email, cryptoRandom());
-          userId = u.id;
-        }
-      }
+    if (!email) throw new Error("Email não retornado pelo provedor Google.");
+
+    let user = await findUserByEmail(email);
+    let userId = user?.user.id;
+    if (!user) {
+      const u = await createUser(name, email, crypto.randomBytes(16).toString("hex"));
+      userId = u.id;
+      user = { user: u, passwordHash: "" };
     }
 
-    await saveToken(userId, "google", tokenJson.access_token, tokenJson.refresh_token, tokenJson.expires_in ? new Date(Date.now() + tokenJson.expires_in * 1000) : undefined, tokenJson.scope);
+    await saveToken(userId!, "google", tokenJson.access_token, tokenJson.refresh_token, tokenJson.expires_in ? new Date(Date.now() + tokenJson.expires_in * 1000) : undefined, tokenJson.scope);
+    setSessionCookie(res, { id: userId!, email: user.user.email });
 
-    const chain = state.chain || "";
+    const chain = decodedState.chain || "";
     if (chain === "all") {
-      const next = new URL(`/api/auth/miro/start?${new URLSearchParams({ userId, chain: "trello" }).toString()}`, req.headers.origin || "");
-      return res.redirect(next.toString());
+      return res.redirect(`/api/auth/miro/start?chain=trello`);
     }
 
-    const finalUser = await findUserById(userId);
-    return res.send(htmlAutoLogin(finalUser?.id || userId, finalUser?.name || userName, finalUser?.email || userEmail, "/settings?connected=google"));
+    return res.redirect("/settings?connected=google");
   } catch (e: any) {
-    res.status(400).send(`<pre>${e.message}</pre>`);
+    console.error("[OAuth Google Callback Error]:", e);
+    res.status(500).send("Falha interna durante a validação da conta Google.");
   }
 };
 
-//Rota de conectar com o Miro:
-export const miroStart: RequestHandler = (req, res) => {
+export const miroStart: RequestHandler = (req: AuthenticatedRequest, res: Response) => {
   try {
     const clientId = baseUrlEnv("MIRO_CLIENT_ID");
     const redirectUri = baseUrlEnv("MIRO_REDIRECT_URI");
-    const state = new URLSearchParams({ userId: String(req.query.userId || ""), chain: String(req.query.chain || "") }).toString();
+    const userId = req.user?.id || (req.query.userId as string) || "";
+    
+    if (!userId) {
+      return res.status(400).send("<h3>Usuário não identificado para conexão com o Miro.</h3>");
+    }
+
+    const stateToken = jwt.sign(
+      { userId, chain: String(req.query.chain || "") }, 
+      JWT_SECRET, 
+      { expiresIn: "15m" }
+    );
+
     const url = new URL("https://miro.com/oauth/authorize");
     url.searchParams.set("response_type", "code");
     url.searchParams.set("client_id", clientId);
     url.searchParams.set("redirect_uri", redirectUri);
-    url.searchParams.set("state", state);
-    url.searchParams.set("scope", "boards:read"); // Adicionado o scope boards:read
+    url.searchParams.set("state", stateToken);
+    url.searchParams.set("scope", "boards:read boards:write");
     res.redirect(url.toString());
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("[OAuth Miro Start Error]:", e);
+    res.status(500).send("Erro interno ao iniciar autenticação com o Miro.");
   }
 };
 
-//Rota de redirecionamento ao conectar com o Miro:
 export const miroCallback: RequestHandler = async (req, res) => {
   try {
     const code = required(req.query.code as string);
-    const stateStr = (req.query.state as string) || "";
-    const state = Object.fromEntries(new URLSearchParams(stateStr));
-    const userId = required(state.userId);
+    const stateToken = required(req.query.state as string);
 
+    let decodedState: { userId: string; chain?: string };
+    try {
+      decodedState = jwt.verify(stateToken, JWT_SECRET) as { userId: string; chain?: string };
+    } catch {
+      return res.status(403).send("Falha na validação de segurança do Miro (State inválido ou expirado).");
+    }
+
+    const userId = decodedState.userId;
     const clientId = baseUrlEnv("MIRO_CLIENT_ID");
     const clientSecret = baseUrlEnv("MIRO_CLIENT_SECRET");
     const redirectUri = baseUrlEnv("MIRO_REDIRECT_URI");
@@ -145,24 +166,28 @@ export const miroCallback: RequestHandler = async (req, res) => {
 
     await saveToken(userId, "miro", tokenJson.access_token, tokenJson.refresh_token, tokenJson.expires_in ? new Date(Date.now() + tokenJson.expires_in * 1000) : undefined, tokenJson.scope);
 
-    const chain = state.chain || "";
+    const chain = decodedState.chain || "";
     if (chain === "trello") {
-      const next = new URL(`/api/auth/trello/start?${new URLSearchParams({ userId }).toString()}`, req.headers.origin || "");
-      return res.redirect(next.toString());
+      return res.redirect(`/api/auth/trello/start?userId=${userId}`);
     }
 
     return res.redirect("/settings?connected=miro");
   } catch (e: any) {
-    res.status(400).send(`<pre>${e.message}</pre>`);
+    console.error("[OAuth Miro Callback Error]:", e);
+    res.status(500).send("Falha interna durante a validação da conta Miro.");
   }
 };
 
-//Rota de conectar com o Trello:
-export const trelloStart: RequestHandler = (req, res) => {
+export const trelloStart: RequestHandler = (req: AuthenticatedRequest, res: Response) => {
   try {
     const key = baseUrlEnv("TRELLO_KEY");
     const returnUrl = baseUrlEnv("TRELLO_REDIRECT_URI");
-    const userId = String(req.query.userId || "");
+    const userId = req.user?.id || (req.query.userId as string) || "";
+
+    if (!userId) {
+      return res.status(400).send("<h3>Usuário não identificado para conexão com o Trello.</h3>");
+    }
+
     const url = new URL("https://trello.com/1/authorize");
     url.searchParams.set("expiration", "never");
     url.searchParams.set("name", "Collab2Us");
@@ -170,15 +195,13 @@ export const trelloStart: RequestHandler = (req, res) => {
     url.searchParams.set("response_type", "token");
     url.searchParams.set("key", key);
     url.searchParams.set("return_url", `${returnUrl}?userId=${encodeURIComponent(userId)}`);
-    console.log("TRELLO_KEY:", key);
-    console.log("TRELLO Redirect URL gerada:", url.toString());
     res.redirect(url.toString());
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("[OAuth Trello Start Error]:", e);
+    res.status(500).send("Erro interno ao iniciar autenticação com o Trello.");
   }
 };
 
-//Rota de redirecionamento ao conectar com o Trello:
 export const trelloCallbackPage: RequestHandler = (req, res) => {
   const userId = String(req.query.userId || "");
   res.type("html").send(`<!doctype html><html><body><script>
@@ -194,42 +217,42 @@ export const trelloCallbackPage: RequestHandler = (req, res) => {
   </script></body></html>`);
 };
 
-//Rota de salvar o Token do Trello:
-export const trelloSaveToken: RequestHandler = async (req, res) => {
+export const trelloSaveToken: RequestHandler = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = required((req.query.userId as string) || (req.header("X-User-Id") as string));
-    const token = required((req.body as any)?.token);
+    const userId = req.user?.id;
+    const token = (req.body as any)?.token;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Sessão inválida ou expirada." });
+    }
+    if (!token) {
+      return res.status(400).json({ error: "Token do Trello é obrigatório." });
+    }
+
     await saveToken(userId, "trello", token);
     res.status(200).json({ status: "ok" });
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("[OAuth Trello Save Error]:", e);
+    res.status(500).json({ error: "Falha ao gravar credenciais de integração do Trello." });
   }
 };
 
-//Rota de salvar o Token do Trello de forma manual:
-export const saveManualToken: RequestHandler = async (req, res) => {
+export const saveManualToken: RequestHandler = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = required((req.header("X-User-Id") as string) || (req.query.userId as string));
+    const userId = req.user?.id;
     const { provider, access_token, refresh_token, expires_at, scope } = (req.body || {}) as any;
-    if (!provider || !access_token) return res.status(400).json({ error: "provider e access_token obrigatórios" });
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Sessão inválida ou expirada." });
+    }
+    if (!provider || !access_token) {
+      return res.status(400).json({ error: "Provedor e access_token são obrigatórios." });
+    }
+
     await saveToken(userId, provider, access_token, refresh_token, expires_at ? new Date(expires_at) : undefined, scope);
     res.status(200).json({ status: "ok" });
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("[Manual Token Save Error]:", e);
+    res.status(500).json({ error: "Falha interna ao gravar credenciais de acesso." });
   }
 };
-
-//Criptografar:
-function cryptoRandom() {
-  return Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-}
-
-//Auto login com a sessão salva nos Cookies do Navegador:
-function htmlAutoLogin(userId: string, userName: string, userEmail: string, redirect: string) {
-  const esc = (s: string) => s.replace(/"/g, '\\"');
-  const user = `{\"id\":\"${esc(userId)}\",\"name\":\"${esc(userName)}\",\"email\":\"${esc(userEmail)}\"}`;
-  return `<!doctype html><html><body><script>
-    try { localStorage.setItem('c2u:user', JSON.stringify(${user})); } catch(e){}
-    location.href='${redirect}';
-  </script></body></html>`;
-}

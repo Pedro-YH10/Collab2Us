@@ -24,22 +24,40 @@ if (hasDb) {
         ssl: sslConfig(),
       };
   pool = new Pool(config);
-  pool.query("select 1").catch((err) => {
-    console.error("Failed to connect to Postgres:", err);
-  });
-
-  if (process.env.DB_AUTO_MIGRATE === "true") {
-    try {
-      const schemaPath = path.join(process.cwd(), "server/sql/schema.sql");
-      const sql = fs.readFileSync(schemaPath, "utf8");
-      pool.query(sql).catch((e) => console.error("Migration error:", e));
-    } catch (e) {
-      console.error("Could not run migrations:", e);
-    }
-  }
+  pool.query("select 1")
+    .then(() => runMigrations())
+    .catch((err) => {
+      console.error("Erro de conexão ao banco PostgreSQL:", err);
+    });
 }
 
 export async function dbQuery<T = any>(text: string, params?: any[]): Promise<QueryResult<T>> {
   if (!pool) throw new Error("Banco de dados não configurado");
   return pool.query(text, params);
+}
+
+export async function runMigrations() {
+  if (pool) {
+    try {
+      const schemaPath = path.join(process.cwd(), "server/sql/schema.sql");
+      const sql = fs.readFileSync(schemaPath, "utf8");
+      await pool.query(sql);
+
+      await pool.query(`
+        alter table story_mappings add column if not exists miro_item_url text;
+        alter table story_mappings add column if not exists trello_card_url text;
+        alter table story_mappings add column if not exists miro_item_ids jsonb default '[]'::jsonb;
+        alter table story_mappings add column if not exists content_hash text;
+        alter table story_mappings add column if not exists last_synced_at timestamptz default now();
+        alter table story_mappings add column if not exists updated_at timestamptz default now();
+        
+        alter table workflow_settings add column if not exists ai_provider text not null default 'openai';
+        alter table workflow_settings add column if not exists ai_model text;
+        alter table workflow_settings add column if not exists ai_api_key text;
+        alter table workflow_settings add column if not exists custom_system_prompt text;
+      `);
+    } catch (e) {
+      console.error("Falha ao aplicar migrações no banco de dados:", e);
+    }
+  }
 }

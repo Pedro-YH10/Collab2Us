@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 
-//Função de ir para rota Login se caso o usuário não tiver feito o Login:
+// Função de redirecionamento para rota Login se caso o usuário não estiver autenticado
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();

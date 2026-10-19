@@ -3,12 +3,10 @@ import bcrypt from "bcryptjs";
 import type { User } from "@shared/api";
 import crypto from "node:crypto";
 
-//Memória de usuários:
 const mem = {
   users: new Map<string, { user: User; passwordHash: string }>(),
 };
 
-//Criar um usuário:
 export async function createUser(name: string, email: string, password: string): Promise<User> {
   const normalized = email.toLowerCase();
   const passwordHash = await bcrypt.hash(password, 10);
@@ -25,7 +23,6 @@ export async function createUser(name: string, email: string, password: string):
   return user;
 }
 
-//Buscar um usuário por Email:
 export async function findUserByEmail(email: string): Promise<{ user: User; passwordHash: string } | null> {
   const normalized = email.toLowerCase();
   if (hasDb) {
@@ -40,7 +37,6 @@ export async function findUserByEmail(email: string): Promise<{ user: User; pass
   return mem.users.get(normalized) ?? null;
 }
 
-//Buscar um usuário por ID:
 export async function findUserById(id: string): Promise<User | null> {
   if (hasDb) {
     const result = await dbQuery<{ id: string; name: string; email: string }>(
@@ -51,15 +47,13 @@ export async function findUserById(id: string): Promise<User | null> {
     const r = result.rows[0];
     return { id: r.id, name: r.name, email: r.email };
   }
-  // No caso de memória, precisamos iterar para encontrar por ID
   for (const record of mem.users.values()) {
     if (record.user.id === id) return record.user;
   }
   return null;
 }
 
-//Atualizar um usuário:
-export async function updateUser(userId: string, data: { name?: string; email?: string }): Promise<User | null> {
+export async function updateUser(userId: string, data: { name?: string; email?: string; password?: string }): Promise<User | null> {
   if (hasDb) {
     const updates: string[] = [];
     const params: (string | number)[] = [];
@@ -73,10 +67,15 @@ export async function updateUser(userId: string, data: { name?: string; email?: 
       updates.push(`email=$${paramIndex++}`);
       params.push(data.email.toLowerCase());
     }
+    if (data.password !== undefined) {
+      const passwordHash = await bcrypt.hash(data.password, 10);
+      updates.push(`password_hash=$${paramIndex++}`);
+      params.push(passwordHash);
+    }
 
-    if (updates.length === 0) return findUserById(userId); // Nenhum dado para atualizar
+    if (updates.length === 0) return findUserById(userId);
 
-    params.push(userId); // O último parâmetro é o userId
+    params.push(userId);
     const result = await dbQuery<{ id: string; name: string; email: string }>(
       `update users set ${updates.join(', ')} where id=$${paramIndex} returning id, name, email`,
       params,
@@ -85,24 +84,34 @@ export async function updateUser(userId: string, data: { name?: string; email?: 
     const r = result.rows[0];
     return { id: r.id, name: r.name, email: r.email };
   }
-  // In-memory update
+  
   for (const record of mem.users.values()) {
     if (record.user.id === userId) {
       if (data.name !== undefined) record.user.name = data.name;
-      if (data.email !== undefined) record.user.email = data.email.toLowerCase();
+      if (data.email !== undefined) {
+        const oldEmail = record.user.email;
+        const newEmail = data.email.toLowerCase();
+        
+        if (oldEmail !== newEmail) {
+          record.user.email = newEmail;
+          mem.users.delete(oldEmail);
+          mem.users.set(newEmail, record);
+        }
+      }
+      if (data.password !== undefined) {
+        record.passwordHash = await bcrypt.hash(data.password, 10);
+      }
       return record.user;
     }
   }
   return null;
 }
 
-//Deletar um usuário:
 export async function deleteUser(userId: string): Promise<boolean> {
   if (hasDb) {
-    const result = await dbQuery<any>(`delete from users where id=$1`, [userId]); // Usar any para acessar rowCount
+    const result = await dbQuery<any>(`delete from users where id=$1`, [userId]);
     return result.rowCount > 0;
   }
-  //Deletar da memória:
   let deleted = false;
   for (const [key, record] of mem.users.entries()) {
     if (record.user.id === userId) {
@@ -114,7 +123,6 @@ export async function deleteUser(userId: string): Promise<boolean> {
   return deleted;
 }
 
-//Verificar e validar um usuário:
 export async function verifyUser(email: string, password: string): Promise<User | null> {
   const record = await findUserByEmail(email);
   if (!record) return null;

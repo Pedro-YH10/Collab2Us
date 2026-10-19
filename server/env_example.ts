@@ -1,0 +1,48 @@
+/*
+VITE_PUBLIC_BUILDER_KEY=__BUILDER_PUBLIC_KEY__
+PING_MESSAGE="ping test"
+
+# Collab2Us variáveis de ambiente
+
+# Chave secreta para assinatura criptográfica de sessões JWT (HTTPOnly Cookies)
+JWT_SECRET=
+
+# URL pública de inicialização do servidor (para o Dual Track / Webhooks do Trello)
+SERVER_URL=http://localhost:8080
+
+# Server (Porta)
+PORT=8080
+
+# Banco de Dados
+DATABASE_URL=
+PGHOST=localhost
+PGPORT=5432
+PGUSER=
+PGPASSWORD=
+PGDATABASE=Collab2Us
+PGSSLMODE=disable
+
+# Auto migrate do Banco de Dados ao iniciar schema.sql
+DB_AUTO_MIGRATE=true
+
+# Configurações dos Tokens
+ENABLE_SAVE_TOKEN_GOOGLE=true
+ENABLE_SAVE_TOKEN_MIRO=true
+ENABLE_SAVE_TOKEN_TRELLO=true
+ENABLE_EXPOSE_TOKENS=true
+
+# Google OAuth
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:8080/auth/redirect/google
+
+# Miro OAuth
+MIRO_CLIENT_ID=
+MIRO_CLIENT_SECRET=
+MIRO_REDIRECT_URI=http://localhost:8080/auth/redirect/miro
+
+# Trello OAuth
+TRELLO_KEY=
+TRELLO_SECRET=
+TRELLO_REDIRECT_URI=http://localhost:8080/auth/redirect/trello
+*/

@@ -1,47 +1,77 @@
-import { RequestHandler } from "express";
-import { findUserById, updateUser, deleteUser } from "../models/users";
+import { Response, RequestHandler } from "express";
+import { AuthenticatedRequest } from "../middleware/auth";
+import { findUserById, updateUser, deleteUser, findUserByEmail } from "../models/users";
 import { deleteTokensByUserId } from "../models/tokens";
-import { required } from "../services/http"; // Importar required de http.ts
 
-//Rota de pegar um usuário:
-export const getUser: RequestHandler = async (req, res) => {
+export const getUser: RequestHandler = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = required((req.params.id as string) || (req.header("X-User-Id") as string));
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Sessão não autenticada." });
+
     const user = await findUserById(userId);
-    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
+    
     res.status(200).json({ user });
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("[User Query Error]:", e);
+    res.status(500).json({ error: "Erro interno ao consultar perfil de usuário." });
   }
 };
 
-//Rota de atualizar o nome de um usuário:
-export const updateUserName: RequestHandler = async (req, res) => {
+export const getCurrentUser: RequestHandler = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = required((req.params.id as string) || (req.header("X-User-Id") as string));
-    const { name } = req.body;
-    if (!name) return res.status(400).json({ error: "Nome é obrigatório" });
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Sessão não autenticada ou expirada." });
 
-    const updatedUser = await updateUser(userId, { name });
-    if (!updatedUser) return res.status(404).json({ error: "Usuário não encontrado para atualizar" });
+    const user = await findUserById(userId);
+    if (!user) return res.status(404).json({ error: "Perfil de usuário não encontrado." });
 
+    res.status(200).json({ user });
+  } catch (e: any) {
+    console.error("[Session Recovery Error]:", e);
+    res.status(500).json({ error: "Erro interno ao restaurar sessão de login." });
+  }
+};
+
+export const updateUserName: RequestHandler = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { name, email, password } = req.body;
+    if (!userId) return res.status(401).json({ error: "Sessão não autenticada." });
+
+    if (name === undefined && email === undefined && password === undefined) {
+      return res.status(400).json({ error: "Nenhum dado informado para alteração do perfil." });
+    }
+
+    if (email) {
+      const existing = await findUserByEmail(email);
+      if (existing && existing.user.id !== userId) {
+        return res.status(409).json({ error: "O e-mail informado já está em uso por outro usuário." });
+      }
+    }
+
+    const updatedUser = await updateUser(userId, { name, email, password });
     res.status(200).json({ user: updatedUser });
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("[User Update Error]:", e);
+    res.status(500).json({ error: "Erro interno ao processar atualização cadastral." });
   }
 };
 
-//Rota de deletar um usuário:
-export const deleteUserAccount: RequestHandler = async (req, res) => {
+export const deleteUserAccount: RequestHandler = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = required((req.params.id as string) || (req.header("X-User-Id") as string));
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Sessão não autenticada." });
 
-    await deleteTokensByUserId(userId); // Excluir tokens primeiro
+    await deleteTokensByUserId(userId); 
     const deleted = await deleteUser(userId);
-    if (!deleted) return res.status(404).json({ error: "Usuário não encontrado para excluir" });
+    
+    if (!deleted) return res.status(404).json({ error: "Usuário não encontrado para exclusão." });
 
+    res.clearCookie("c2u_session");
     res.status(200).json({ status: "ok" });
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error("[User Account Delete Error]:", e);
+    res.status(500).json({ error: "Erro interno ao processar a exclusão da conta." });
   }
 };

@@ -1,4 +1,3 @@
-//Fazer requisições http:
 export async function http<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   if (!res.ok) {
