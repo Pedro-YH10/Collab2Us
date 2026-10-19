@@ -12,7 +12,6 @@
   <a href="#getting-started">Getting started</a> ·
   <a href="#configuration">Configuration</a> ·
   <a href="#architecture">Architecture</a> ·
-  <a href="#license">License</a>
 </p>
 
 ---
@@ -40,12 +39,12 @@ The application follows a human-in-the-loop workflow: automation speeds up the w
 
 ```mermaid
 flowchart LR
-    A["Miro board: Sticky notes"] --> B["Extraction and story conversion"]
+    A["Miro board - Sticky notes"] --> B["Extraction and story conversion"]
     B --> C["Curation and quality checks: QUS, INVEST, BDD"]
     C --> D{"Human review"}
-    D -->|Approved| E["Trello backlog: Lists and cards"]
+    D -->|Approved| E["Trello backlog - Lists and cards"]
     E <--> F["Traceability and on-demand sync"]
-    E --> G["Reverse transfer"]
+    E --> G["Reverse transfer to Miro"]
     G --> A
 ```
 
@@ -179,7 +178,6 @@ Collab2Us follows a three-tier architecture:
 ├── shared/                 # Shared types and API contracts
 ├── .env.example            # Environment-variable template
 ├── CITATION.cff            # Citation metadata
-├── LICENSE                 # PolyForm Strict License 1.0.0
 └── README.md
 ```
 
