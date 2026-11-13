@@ -25,7 +25,7 @@ export default function Index() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [demoResult, setDemoResult] = useState<any>(null);
 
-  useHomeTour();
+  useHomeTour(Boolean(user && !loading));
 
   useEffect(() => {
     setDemoInput(t("home_demo_default_input"));

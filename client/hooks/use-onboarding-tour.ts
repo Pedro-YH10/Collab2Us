@@ -14,14 +14,16 @@ const defaultTourOptions: Tour.TourOptions = {
   },
 };
 
-// 1. TOUR DA HOME (Sutil e sem máscara escura)
-export function useHomeTour() {
+// 1. TOUR DA HOME
+export function useHomeTour(enabled: boolean = true) {
   const tourRef = useRef<Tour | null>(null);
   const KEY = "c2u_tour_home";
 
   const startTour = useCallback(() => {
+    if (!enabled) return;
+
     tourRef.current?.cancel();
-    localStorage.setItem(KEY, "true"); // Persiste imediatamente ao iniciar
+    localStorage.setItem(KEY, "true");
 
     const tour = new Shepherd.Tour({
       useModalOverlay: false,
@@ -62,19 +64,20 @@ export function useHomeTour() {
 
     tourRef.current = tour;
     tour.start();
-  }, [KEY]);
+  }, [KEY, enabled]);
 
   useEffect(() => {
-    if (!localStorage.getItem(KEY)) {
+    // Só agenda o tour se o usuário estiver de fato autenticado
+    if (enabled && !localStorage.getItem(KEY)) {
       const t = setTimeout(() => {
-        if (!localStorage.getItem(KEY)) startTour();
+        if (enabled && !localStorage.getItem(KEY)) startTour();
       }, 800);
       return () => {
         clearTimeout(t);
         tourRef.current?.cancel();
       };
     }
-  }, [startTour, KEY]);
+  }, [startTour, KEY, enabled]);
 
   return { startTour };
 }
@@ -286,7 +289,7 @@ export function useStoriesTour() {
   return { startTour };
 }
 
-// 5. TOUR DO WORKFLOW (SIMPLES E DIRETO)
+// 5. TOUR DO WORKFLOW
 export function useWorkflowTour() {
   const tourRef = useRef<Tour | null>(null);
   const KEY = "c2u_tour_workflow";
