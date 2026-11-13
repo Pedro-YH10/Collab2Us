@@ -101,3 +101,38 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+
+
+.shepherd-modal-overlay-container {
+  z-index: 1000 !important;
+}
+
+.shepherd-element {
+  @apply bg-card text-card-foreground border border-border rounded-xl shadow-lg;
+  z-index: 10009 !important;
+}
+
+[data-radix-popper-content-wrapper] {
+  z-index: 10008 !important;
+}
+
+.shepherd-header {
+  @apply bg-transparent border-b border-border pb-2;
+}
+
+.shepherd-title {
+  @apply text-sm font-bold text-foreground;
+}
+
+.shepherd-text {
+  @apply text-xs text-muted-foreground leading-relaxed;
+}
+
+.shepherd-button {
+  @apply bg-primary text-primary-foreground text-xs font-semibold rounded-md px-3 py-1.5;
+}
+
+.shepherd-button-secondary {
+  @apply bg-secondary text-secondary-foreground;
+}

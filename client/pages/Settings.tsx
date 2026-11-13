@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CheckCircle2, AlertCircle, Home, FolderKanban, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { useSettingsTour } from "@/hooks/use-onboarding-tour";
 
 export default function Settings() {
   const { user, updateUser, deleteAccount } = useAuth();
@@ -17,6 +18,8 @@ export default function Settings() {
   const [userName, setUserName] = useState(user?.name || "");
   const [userEmail, setUserEmail] = useState(user?.email || "");
   const [userPassword, setUserPassword] = useState("");
+
+  useSettingsTour();
 
   useEffect(() => {
     if (user?.name) setUserName(user.name);
@@ -128,7 +131,7 @@ export default function Settings() {
         </div>
 
         {/* Botão de Conexão Unificada */}
-        <div className="rounded-xl border bg-primary/5 border-primary/20 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+        <div data-tour="connect-both" className="rounded-xl border bg-primary/5 border-primary/20 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
           <div className="space-y-0.5 text-center sm:text-left">
             <p className="font-bold text-xs text-primary flex items-center justify-center sm:justify-start gap-1.5">
               <Sparkles className="h-3.5 w-3.5" /> {t("st_connect_both_btn")}
@@ -142,35 +145,37 @@ export default function Settings() {
           </Button>
         </div>
 
-        <TokenCard
-          name="Miro"
-          start="/api/auth/miro/start"
-          value={miroToken}
-          isValid={miroValid}
-          show={showMiro}
-          onToggleShow={() => setShowMiro((s) => !s)}
-          onChange={setMiroToken}
-          onSave={async (token) => { 
-            await saveToken("miro", token); 
-            await loadTokens(); 
-            toast.success(t("toast_token_saved", { provider: "Miro" })); 
-          }}
-        />
+        <div data-tour="individual-tokens" className="grid gap-6">
+          <TokenCard
+            name="Miro"
+            start="/api/auth/miro/start"
+            value={miroToken}
+            isValid={miroValid}
+            show={showMiro}
+            onToggleShow={() => setShowMiro((s) => !s)}
+            onChange={setMiroToken}
+            onSave={async (token) => { 
+              await saveToken("miro", token); 
+              await loadTokens(); 
+              toast.success(t("toast_token_saved", { provider: "Miro" })); 
+            }}
+          />
 
-        <TokenCard
-          name="Trello"
-          start="/api/auth/trello/start"
-          value={trelloToken}
-          isValid={trelloValid}
-          show={showTrello}
-          onToggleShow={() => setShowTrello((s) => !s)}
-          onChange={setTrelloToken}
-          onSave={async (token) => { 
-            await saveToken("trello", token); 
-            await loadTokens(); 
-            toast.success(t("toast_token_saved", { provider: "Trello" })); 
-          }}
-        />
+          <TokenCard
+            name="Trello"
+            start="/api/auth/trello/start"
+            value={trelloToken}
+            isValid={trelloValid}
+            show={showTrello}
+            onToggleShow={() => setShowTrello((s) => !s)}
+            onChange={setTrelloToken}
+            onSave={async (token) => { 
+              await saveToken("trello", token); 
+              await loadTokens(); 
+              toast.success(t("toast_token_saved", { provider: "Trello" })); 
+            }}
+          />
+        </div>
 
         <div className="rounded-xl border bg-card p-5 grid gap-4 bg-red-50/10 dark:bg-red-950/20 border-red-200/40">
           <h2 className="font-semibold text-sm text-destructive">{t("st_delete_title")}</h2>

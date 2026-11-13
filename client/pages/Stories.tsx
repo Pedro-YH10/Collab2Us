@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useTranslation } from "@/lib/i18n-context";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
+import { useStoriesTour } from "@/hooks/use-onboarding-tour";
 import { 
   ShieldAlert, 
   Type, 
@@ -35,7 +36,8 @@ import {
   Minimize2,
   Edit2,
   Trash2,
-  GitCompare
+  GitCompare,
+  HelpCircle
 } from "lucide-react";
 import { Board } from "@shared/api";
 
@@ -414,6 +416,8 @@ export default function Stories() {
   const [splittingIndex, setSplitIndex] = useState<number | null>(null);
   const [splitResults, setSplitResults] = useState<Array<{ title: string; desc: string }>>([]);
   const [loadingSplit, setLoadingSplit] = useState(false);
+
+  const { startTour } = useStoriesTour();
 
   const [syncReport, setSyncReport] = useState<{ open: boolean; created: number; logs: string[] }>({
     open: false,
@@ -835,6 +839,16 @@ export default function Stories() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={startTour}
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            title="Tutorial da página"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </Button>
+
           <Dialog open={syncCheckOpen} onOpenChange={setSyncCheckOpen}>
             <DialogTrigger asChild>
               <Button onClick={handleCheckSync} variant="outline" size="sm" disabled={loadingSyncCheck} className="h-8 text-xs gap-1.5 border-cyan-500/30 text-cyan-600 hover:bg-cyan-50/10">
@@ -880,7 +894,7 @@ export default function Stories() {
       </div>
 
       {/* Mapeador de Escopo */}
-      <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+      <div data-tour="scope-panel" className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
         <div className="flex items-center justify-between border-b pb-2">
           <h2 className="font-bold text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <ClipboardList className="h-3.5 w-3.5 text-primary" /> {t("scope_title")}
@@ -955,7 +969,7 @@ export default function Stories() {
           </div>
 
           <div>
-            <Button onClick={loadPreview} className="w-full h-9 text-xs font-semibold" disabled={loadingPreview || !miroId}>
+            <Button data-tour="map-btn" onClick={loadPreview} className="w-full h-9 text-xs font-semibold" disabled={loadingPreview || !miroId}>
               {loadingPreview ? t("mapping_in_progress") : t("map_notes_btn")}
             </Button>
           </div>
@@ -963,7 +977,7 @@ export default function Stories() {
       </div>
 
       {/* Editor de Curadoria */}
-      <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
+      <div data-tour="curation-panel" className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
           <div>
@@ -1107,6 +1121,7 @@ export default function Stories() {
 
         <div className="pt-2 border-t flex justify-end">
           <Button 
+            data-tour="export-btn"
             onClick={commitStories} 
             className="w-full md:w-auto px-8 h-10 text-xs font-bold bg-primary hover:bg-primary/90" 
             disabled={loading || curatedStories.length === 0}

@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { useTranslation } from "@/lib/i18n-context";
 import { toast } from "sonner";
 import { ShieldCheck, Palette, FileCode2, Bot, Key, Terminal, RefreshCw, Cpu } from "lucide-react";
+import { useWorkflowTour } from "@/hooks/use-onboarding-tour";
 
 interface AIModelOption {
   id: string;
@@ -31,6 +32,8 @@ export default function Workflow() {
   const [availableModels, setAvailableModels] = useState<AIModelOption[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useWorkflowTour();
 
   async function loadModels(provider: string, key?: string, savedModel?: string) {
     const cleanKey = (key || aiApiKey || "").trim();
@@ -122,7 +125,7 @@ export default function Workflow() {
       </div>
 
       <div className="grid gap-6">
-        <Card className="shadow-sm border-primary/20 bg-primary/5">
+        <Card data-tour="workflow-ai-card" className="shadow-sm border-primary/20 bg-primary/5">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2 text-primary">
               <Bot className="h-4 w-4" /> {t("wf_ai_card_title")}
@@ -216,7 +219,7 @@ export default function Workflow() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card data-tour="workflow-quality-card" className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-primary" /> {t("wf_qus_filter_title")}

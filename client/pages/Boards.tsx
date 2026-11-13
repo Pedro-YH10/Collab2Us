@@ -13,6 +13,7 @@ import { useTranslation } from "@/lib/i18n-context";
 import { toast } from "sonner";
 import { Layers, Activity, FolderKanban, Sparkles, Search, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useBoardsTour } from "@/hooks/use-onboarding-tour";
 
 async function fetchJSON<T>(url: string): Promise<T> {
   const res = await fetch(url, { credentials: "include" });
@@ -37,6 +38,8 @@ export default function Boards() {
   const [miroBoardName, setMiroBoardName] = useState("");
   const [miroTemplateType, setMiroTemplateType] = useState<"canvas" | "usm" | "discovery">("canvas");
   const [creatingMiro, setCreatingMiro] = useState(false);
+
+  useBoardsTour();
 
   const miro = useQuery({ 
     queryKey: ["miro-boards"], 
@@ -190,7 +193,7 @@ export default function Boards() {
       <div className="grid gap-6 md:grid-cols-2 items-start">
         
         {/* MIRO */}
-        <div className="rounded-lg border bg-card p-4 space-y-3 shadow-sm">
+        <div data-tour="boards-miro" className="rounded-lg border bg-card p-4 space-y-3 shadow-sm">
           <div className="flex items-center justify-between border-b pb-2">
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-sm tracking-tight">{t("boards_miro_section")}</h2>
@@ -273,7 +276,7 @@ export default function Boards() {
         </div>
 
         {/* TRELLO */}
-        <div className="rounded-lg border bg-card p-4 space-y-3 shadow-sm">
+        <div data-tour="boards-trello" className="rounded-lg border bg-card p-4 space-y-3 shadow-sm">
           <div className="flex items-center justify-between border-b pb-2">
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-sm tracking-tight">{t("boards_trello_section")}</h2>

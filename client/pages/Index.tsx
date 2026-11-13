@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Layers, FolderKanban, Activity, Play, Sparkles } from "lucide-react";
+import { useHomeTour } from "@/hooks/use-onboarding-tour";
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -23,6 +24,8 @@ export default function Index() {
   const [demoInput, setDemoInput] = useState(t("home_demo_default_input"));
   const [isSimulating, setIsSimulating] = useState(false);
   const [demoResult, setDemoResult] = useState<any>(null);
+
+  useHomeTour();
 
   useEffect(() => {
     setDemoInput(t("home_demo_default_input"));
@@ -95,7 +98,7 @@ export default function Index() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div data-tour="home-integrations" className="grid gap-4 sm:grid-cols-3">
           <Card className="shadow-xs border-primary/20 bg-primary/5">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -146,7 +149,7 @@ export default function Index() {
           </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div data-tour="home-sync-hub" className="grid gap-6 md:grid-cols-2">
           <div className="border rounded-xl p-6 space-y-4 bg-card shadow-sm">
             <h2 className="font-bold text-lg tracking-tight">{t("home_sync_title")}</h2>
             <p className="text-xs text-muted-foreground leading-relaxed">
